@@ -26,17 +26,6 @@ func TestSerializeNotification(t *testing.T) {
     }
 }
 
-func TestReadNotificationFailure(t *testing.T) {
-    exampleResponse := bytes.NewBuffer([]byte{8,2,0,0,0,1})
-    failure := NotificationFailureFromBytes(exampleResponse)
-    if failure.Identifier != 1 {
-        t.Errorf("Expected identifier=1")
-    }
-    if failure.Status != 2 {
-        t.Errorf("Expected status=2")
-    }
-}
-
 func TestMakeNotification(t *testing.T) {
     n := MakeNotification(1, "ae91fa", "payload")
     expectedToken := []byte{0xAE,0x91,0xFA,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
