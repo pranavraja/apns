@@ -3,6 +3,8 @@ package apns
 import (
     "testing"
     "bytes"
+    "net"
+    "time"
 )
 
 func BenchmarkNotificationSend(b *testing.B) {
@@ -25,13 +27,13 @@ func TestSerializeNotification(t *testing.T) {
 }
 
 func TestReadNotificationFailure(t *testing.T) {
-    exampleResponse := bytes.NewBuffer([]byte{8,1,0,0,0,1})
+    exampleResponse := bytes.NewBuffer([]byte{8,2,0,0,0,1})
     failure := NotificationFailureFromBytes(exampleResponse)
     if failure.Identifier != 1 {
         t.Errorf("Expected identifier=1")
     }
-    if failure.Status != 1 {
-        t.Errorf("Expected status=1")
+    if failure.Status != 2 {
+        t.Errorf("Expected status=2")
     }
 }
 
@@ -63,3 +65,46 @@ func TestResetAfter(t *testing.T) {
         t.Errorf("first identifier != 3")
     }
 }
+
+// Implements net.Conn that returns a canned value when read.
+// Everything else on this Conn is a no-op
+type StubConnection struct {
+    Buffer []byte
+}
+func (conn StubConnection) Read(b []byte) (int, error) {
+    copy(b, conn.Buffer)
+    return len(conn.Buffer), nil
+}
+func (conn StubConnection) Close() error {
+    return nil
+}
+func (conn StubConnection) RemoteAddr() net.Addr {
+    return nil
+}
+func (conn StubConnection) LocalAddr() net.Addr {
+    return nil
+}
+func (conn StubConnection) SetReadDeadline(t time.Time) error {
+    return nil
+}
+func (conn StubConnection) SetWriteDeadline(t time.Time) error {
+    return nil
+}
+func (conn StubConnection) SetDeadline(t time.Time) error {
+    return nil
+}
+func (conn StubConnection) Write(b []byte) (int, error) {
+    return 0, nil
+}
+
+func TestReadsFailures(t *testing.T) {
+    _, read, _ := Channels(StubConnection{[]byte{8,4,0,0,0,2}})
+    failure := <-read
+    if failure.Status != 4 {
+        t.Errorf("couldn't read failure status")
+    }
+    if failure.Identifier != 2 {
+        t.Errorf("couldn't read failure identifier")
+    }
+}
+

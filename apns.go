@@ -1,6 +1,7 @@
 package apns
 
 import (
+    "net"
     "time"
     "crypto/tls"
     "bytes"
@@ -74,22 +75,17 @@ func ResetAfter(identifier uint32, queue []NotificationAndPayload) []Notificatio
     return []NotificationAndPayload{}
 }
 
-func TLSConfigWithCertFile(certFile string, keyFile string) (conf *tls.Config, err error) {
-    conf = new(tls.Config)
+func Connect(host string, certFile string, keyFile string) (conn *tls.Conn, err error) {
+    conf := new(tls.Config)
     cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+    if err != nil {
+        return
+    }
     conf.Certificates = append(conf.Certificates, cert)
-    return
+    return tls.Dial("tcp", host, conf)
 }
 
-func ConnectToApns(host string, certFile string, keyFile string) (writeChannel chan NotificationAndPayload, readChannel chan NotificationFailure, err error) {
-    config, err := TLSConfigWithCertFile(certFile, keyFile)
-    if err != nil {
-        return
-    }
-    conn, err := tls.Dial("tcp", host, config)
-    if err != nil {
-        return
-    }
+func Channels(conn net.Conn) (writeChannel chan NotificationAndPayload, readChannel chan NotificationFailure, err error) {
     readChannel = make(chan NotificationFailure, 0)
     writeChannel = make(chan NotificationAndPayload, 100)
     go func () {
@@ -125,7 +121,15 @@ func SendNotifications(write chan NotificationAndPayload, read chan Notification
     }
 }
 
-func ConnectAndSend(host string, certFile string, keyFile string, queue []NotificationAndPayload) {
-    write, read, _ := ConnectToApns(host, certFile, keyFile)
+func ConnectAndSend(host string, certFile string, keyFile string, queue []NotificationAndPayload) (err error) {
+    conn, err := Connect(host, certFile, keyFile)
+    if err != nil {
+        return
+    }
+    write, read, err := Channels(conn)
+    if err != nil {
+        return
+    }
     SendNotifications(write, read, queue)
+    return
 }

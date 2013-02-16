@@ -44,17 +44,28 @@ func main() {
     host := os.Getenv("APNS_HOST")
     certFile := os.Getenv("CERT_FILE")
     keyFile := os.Getenv("KEY_FILE")
-    write, read, err := apns.ConnectToApns(host, certFile, keyFile)
+    conn, err := apns.Connect(host, certFile, keyFile)
     if err != nil {
         panic(err)
     }
+    write, read, err := apns.Channels(conn)
+    if err != nil {
+        panic(err)
+    }
+    // Writing a notification will serialize and send it through the Conn
     write <- apns.MakeNotification(1, "aef4429b", "message")
+
+    // You can read back failures as objects
     failure := <-read
     if failure.Identifier != 0 {
         panic("#" + failure.Identifier + " failed.")
     }
 }
 ```
+
+# Running the tests
+
+Clone the repo and run `go test`.
 
 # Known issues / caveats
 
