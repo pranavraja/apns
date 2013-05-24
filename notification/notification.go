@@ -61,12 +61,3 @@ func ApsPayload(payload string) ([]byte, error) {
 	jsonPayload := tree{"aps": tree{"alert": payload}}
 	return json.Marshal(jsonPayload)
 }
-
-func ResetAfter(identifier uint32, queue []NotificationAndPayload) []NotificationAndPayload {
-	for index, n := range queue {
-		if n.Notification.Identifier > identifier {
-			return queue[index:]
-		}
-	}
-	return []NotificationAndPayload{}
-}

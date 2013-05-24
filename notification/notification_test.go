@@ -31,16 +31,3 @@ func TestApsPayload(t *testing.T) {
 		t.Errorf("Payload: %s", payload)
 	}
 }
-
-func TestResetAfter(t *testing.T) {
-	queue := []NotificationAndPayload{MakeNotification(1, "a", "payload"),
-		MakeNotification(2, "b", "payload2"),
-		MakeNotification(3, "b", "payload2")}
-	queue = ResetAfter(2, queue)
-	if len(queue) != 1 {
-		t.Errorf("queue has too many elements left: ", queue)
-	}
-	if queue[0].Notification.Identifier != 3 {
-		t.Errorf("first identifier != 3")
-	}
-}

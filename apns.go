@@ -8,6 +8,25 @@ import (
 	"time"
 )
 
+type Queue []notification.NotificationAndPayload
+
+func NewQueue() Queue {
+	return Queue{}
+}
+
+func (queue Queue) Add(identifier int, token string, payload string) Queue {
+	return append(queue, notification.MakeNotification(identifier, token, payload))
+}
+
+func (queue Queue) ResetAfter(identifier uint32) Queue {
+	for index, n := range queue {
+		if n.Notification.Identifier > identifier {
+			return queue[index:]
+		}
+	}
+	return NewQueue()
+}
+
 func Connect(host string, certFile string, keyFile string) (conn *tls.Conn, err error) {
 	conf := new(tls.Config)
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
@@ -44,13 +63,13 @@ func Channels(conn net.Conn) (writeChannel chan notification.NotificationAndPayl
 	return
 }
 
-func SendNotifications(write chan notification.NotificationAndPayload, read chan notification.NotificationFailure, queue []notification.NotificationAndPayload) {
+func SendNotifications(write chan notification.NotificationAndPayload, read chan notification.NotificationFailure, queue Queue) {
 	for _, n := range queue {
 		write <- n
 	}
 	failure := <-read
 	if failure.Identifier != 0 {
-		SendNotifications(write, read, notification.ResetAfter(failure.Identifier, queue))
+		SendNotifications(write, read, queue.ResetAfter(failure.Identifier))
 	}
 }
 

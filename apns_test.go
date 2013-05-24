@@ -15,6 +15,20 @@ func BenchmarkNotificationSend(b *testing.B) {
 	ConnectAndSend("gateway.sandbox.push.apple.com:2195", "dev.pem", "dev.private.pem", queue)
 }
 
+func TestQueue(t *testing.T) {
+	queue := NewQueue().Add(1, "a", "payload").Add(2, "b", "payload2").Add(3, "b", "payload2")
+	if len(queue) != 3 {
+		t.Errorf("queue has wrong number of elements: ", queue)
+	}
+	queue = queue.ResetAfter(2)
+	if len(queue) != 1 {
+		t.Errorf("queue has too many elements left: ", queue)
+	}
+	if queue[0].Notification.Identifier != 3 {
+		t.Errorf("first identifier != 3")
+	}
+}
+
 // Implements net.Conn that returns a canned value when read.
 // Everything else on this Conn is a no-op
 type StubConnection struct {
