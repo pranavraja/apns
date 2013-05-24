@@ -72,7 +72,7 @@ func SendNotifications(write chan notification.Notification, read chan notificat
 	}
 }
 
-func ConnectAndSend(host string, certFile string, keyFile string, queue []notification.Notification) (err error) {
+func ConnectAndSend(host string, certFile string, keyFile string, queue Queue) (err error) {
 	conn, err := Connect(host, certFile, keyFile)
 	if err != nil {
 		return
