@@ -1,9 +1,9 @@
 package apns
 
 import (
-	"./notification"
 	"bytes"
 	"crypto/tls"
+	"github.com/pranavraja/apns/notification"
 	"net"
 	"time"
 )

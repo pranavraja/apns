@@ -1,7 +1,7 @@
 package apns
 
 import (
-	"./notification"
+	"github.com/pranavraja/apns/notification"
 	"net"
 	"testing"
 	"time"
