@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 )
 
-type Notification struct {
+type header struct {
 	RequestType uint8
 	Identifier  uint32
 	Expiry      uint32
@@ -15,12 +15,12 @@ type Notification struct {
 	Token       [32]byte
 }
 
-type NotificationAndPayload struct {
-	Notification Notification
-	Payload      string
+type Notification struct {
+	Header  header
+	Payload string
 }
 
-type NotificationFailure struct {
+type Failure struct {
 	FailureType uint8
 	Status      uint8
 	Identifier  uint32
@@ -33,9 +33,21 @@ func DeviceTokenAsBinary(token string) ([32]byte, error) {
 	return b, err
 }
 
-func MakeNotification(identifier int, token string, payload string) NotificationAndPayload {
+func MakeNotification(identifier int, token string, payload string) Notification {
 	binaryToken, _ := DeviceTokenAsBinary(token)
-	return NotificationAndPayload{Notification{1, uint32(identifier), 0, 32, binaryToken}, payload}
+	return Notification{Header: header{1, uint32(identifier), 0, 32, binaryToken}, Payload: payload}
+}
+
+func (n *Notification) Bytes() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	if err := binary.Write(buf, binary.BigEndian, &n.Header); err != nil {
+		return nil, err
+	}
+	if err := binary.Write(buf, binary.BigEndian, uint16(len(n.Payload))); err != nil {
+		return nil, err
+	}
+	buf.WriteString(n.Payload)
+	return buf.Bytes(), nil
 }
 
 func NotificationToBytes(n Notification, payload []byte) (*bytes.Buffer, error) {
@@ -50,8 +62,8 @@ func NotificationToBytes(n Notification, payload []byte) (*bytes.Buffer, error) 
 	return buf, nil
 }
 
-func NotificationFailureFromBytes(resp *bytes.Buffer) NotificationFailure {
-	var f NotificationFailure
+func FailureFromBytes(resp *bytes.Buffer) Failure {
+	var f Failure
 	binary.Read(resp, binary.BigEndian, &f)
 	return f
 }

@@ -8,7 +8,7 @@ import (
 )
 
 func BenchmarkNotificationSend(b *testing.B) {
-	queue := make([]notification.NotificationAndPayload, b.N)
+	queue := make([]notification.Notification, b.N)
 	for i := 0; i < b.N; i++ {
 		queue[i] = notification.MakeNotification(i, "04049bc60fc0a90ab23619c6a33e017ab6a9ea17de42b5eb008ed1f51a0eacee", "hi iphone")
 	}
@@ -24,7 +24,7 @@ func TestQueue(t *testing.T) {
 	if len(queue) != 1 {
 		t.Errorf("queue has too many elements left: ", queue)
 	}
-	if queue[0].Notification.Identifier != 3 {
+	if queue[0].Header.Identifier != 3 {
 		t.Errorf("first identifier != 3")
 	}
 }

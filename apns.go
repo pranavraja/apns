@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-type Queue []notification.NotificationAndPayload
+type Queue []notification.Notification
 
 func NewQueue() Queue {
 	return Queue{}
@@ -20,7 +20,7 @@ func (queue Queue) Add(identifier int, token string, payload string) Queue {
 
 func (queue Queue) ResetAfter(identifier uint32) Queue {
 	for index, n := range queue {
-		if n.Notification.Identifier > identifier {
+		if n.Header.Identifier > identifier {
 			return queue[index:]
 		}
 	}
@@ -37,9 +37,9 @@ func Connect(host string, certFile string, keyFile string) (conn *tls.Conn, err 
 	return tls.Dial("tcp", host, conf)
 }
 
-func Channels(conn net.Conn) (writeChannel chan notification.NotificationAndPayload, readChannel chan notification.NotificationFailure, err error) {
-	readChannel = make(chan notification.NotificationFailure, 0)
-	writeChannel = make(chan notification.NotificationAndPayload, 100)
+func Channels(conn net.Conn) (writeChannel chan notification.Notification, readChannel chan notification.Failure, err error) {
+	readChannel = make(chan notification.Failure, 0)
+	writeChannel = make(chan notification.Notification, 100)
 	go func() {
 		for {
 			conn.SetReadDeadline(time.Now().Add(2 * time.Second))
@@ -49,21 +49,20 @@ func Channels(conn net.Conn) (writeChannel chan notification.NotificationAndPayl
 				close(readChannel)
 				break
 			}
-			readChannel <- notification.NotificationFailureFromBytes(bytes.NewBuffer(failure))
+			readChannel <- notification.FailureFromBytes(bytes.NewBuffer(failure))
 		}
 	}()
 	go func() {
 		for {
 			n := <-writeChannel
-			apsPayload, _ := notification.ApsPayload(n.Payload)
-			notificationBytes, _ := notification.NotificationToBytes(n.Notification, apsPayload)
-			conn.Write(notificationBytes.Bytes())
+			notificationBytes, _ := n.Bytes()
+			conn.Write(notificationBytes)
 		}
 	}()
 	return
 }
 
-func SendNotifications(write chan notification.NotificationAndPayload, read chan notification.NotificationFailure, queue Queue) {
+func SendNotifications(write chan notification.Notification, read chan notification.Failure, queue Queue) {
 	for _, n := range queue {
 		write <- n
 	}
@@ -73,7 +72,7 @@ func SendNotifications(write chan notification.NotificationAndPayload, read chan
 	}
 }
 
-func ConnectAndSend(host string, certFile string, keyFile string, queue []notification.NotificationAndPayload) (err error) {
+func ConnectAndSend(host string, certFile string, keyFile string, queue []notification.Notification) (err error) {
 	conn, err := Connect(host, certFile, keyFile)
 	if err != nil {
 		return
