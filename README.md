@@ -1,6 +1,6 @@
 # Go push notification client
 
-A work in progress.
+A work in progress. API will probably change, so if you use this, do the Right Thing and vendor your dependencies.
 
 `go get github.com/pranavraja/apns`
 
