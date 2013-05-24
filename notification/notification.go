@@ -50,18 +50,6 @@ func (n *Notification) Bytes() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func NotificationToBytes(n Notification, payload []byte) (*bytes.Buffer, error) {
-	buf := new(bytes.Buffer)
-	if err := binary.Write(buf, binary.BigEndian, &n); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.BigEndian, uint16(len(payload))); err != nil {
-		return nil, err
-	}
-	buf.Write(payload)
-	return buf, nil
-}
-
 func FailureFromBytes(resp *bytes.Buffer) Failure {
 	var f Failure
 	binary.Read(resp, binary.BigEndian, &f)
