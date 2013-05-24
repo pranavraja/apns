@@ -24,7 +24,7 @@ func main() {
     host := os.Getenv("APNS_HOST") // e.g. gateway.push.sandbox.apple.com:2195
     certFile := os.Getenv("CERT_FILE") // e.g. cert.pem
     keyFile := os.Getenv("KEY_FILE") // e.g. cert.private.pem
-    queue := []apns.NotificationAndPayload{apns.MakeNotification(1, "aef4429b", "message")}
+    queue := apns.NewQueue().Add(1, "aef4429b", "message").Add(2, "aef4429b", "message 2")
     // Blocks until notifications are all sent
     apns.ConnectAndSend(host, certFile, keyFile, queue)
 }
@@ -37,6 +37,7 @@ package main
 
 import (
     "github.com/pranavraja/apns"
+    "github.com/pranavraja/apns/notification"
     "os"
 )
 
@@ -53,7 +54,7 @@ func main() {
         panic(err)
     }
     // Writing a notification will serialize and send it through the Conn
-    write <- apns.MakeNotification(1, "aef4429b", "message")
+    write <- notification.MakeNotification(1, "aef4429b", "message")
 
     // You can read back failures as objects
     failure := <-read
