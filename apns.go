@@ -27,7 +27,7 @@ func (queue Queue) ResetAfter(identifier uint32) Queue {
 	return NewQueue()
 }
 
-func Connect(host string, certFile string, keyFile string) (conn *tls.Conn, err error) {
+func Connect(host string, certFile string, keyFile string) (conn net.Conn, err error) {
 	conf := new(tls.Config)
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
