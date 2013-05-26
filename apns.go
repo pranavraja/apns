@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"github.com/pranavraja/apns/notification"
-	"net"
+	"io"
 	"time"
 )
 
@@ -39,13 +39,28 @@ func Connect(host string, certFile string, keyFile string) (*ApnsService, error)
 	return service, err
 }
 
+type deadlineReader interface {
+	SetReadDeadline(t time.Time) error
+}
+
+type readWriteCloserWithDeadline interface {
+	io.ReadWriteCloser
+	deadlineReader
+}
+
 type ApnsService struct {
-	conn net.Conn
+	conn readWriteCloserWithDeadline
 	host string
 	conf *tls.Config
 }
 
 func (service *ApnsService) Connect() (err error) {
+	if service.conn != nil {
+		err = service.conn.Close()
+		if err != nil {
+			return
+		}
+	}
 	service.conn, err = tls.Dial("tcp", service.host, service.conf)
 	return
 }
