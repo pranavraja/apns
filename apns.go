@@ -27,60 +27,82 @@ func (queue Queue) ResetAfter(identifier uint32) Queue {
 	return NewQueue()
 }
 
-func Connect(host string, certFile string, keyFile string) (conn net.Conn, err error) {
+func Connect(host string, certFile string, keyFile string) (*ApnsService, error) {
 	conf := new(tls.Config)
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
-		return
+        return nil, err
 	}
 	conf.Certificates = append(conf.Certificates, cert)
-	return tls.Dial("tcp", host, conf)
+    service := &ApnsService{host: host, conf: conf}
+    err = service.Connect()
+    return service, err
 }
 
-func Channels(conn net.Conn) (writeChannel chan notification.Notification, readChannel chan notification.Failure, err error) {
-	readChannel = make(chan notification.Failure, 0)
-	writeChannel = make(chan notification.Notification, 100)
-	go func() {
-		for {
-			conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-			failure := make([]byte, 6)
-			_, err := conn.Read(failure)
-			if err != nil {
-				close(readChannel)
-				break
-			}
-			readChannel <- notification.FailureFromBytes(bytes.NewBuffer(failure))
+type ApnsService struct {
+	conn net.Conn
+    host string
+    conf *tls.Config
+}
+
+func (service *ApnsService) Connect() (err error) {
+    service.conn, err = tls.Dial("tcp", service.host, service.conf)
+    return
+}
+
+func (service *ApnsService) SendOne(n notification.Notification) error {
+	notificationBytes, _ := n.Bytes()
+	_, err := service.conn.Write(notificationBytes)
+	return err
+}
+
+func (service *ApnsService) ReadFailure(timeout time.Duration) (f notification.Failure, err error) {
+	failure := make([]byte, 6) // Protocol defines apns failures to be 6 bytes long. See http://developer.apple.com/library/ios/#documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/Chapters/CommunicatingWIthAPS.html#//apple_ref/doc/uid/TP40008194-CH101-SW4
+	service.conn.SetReadDeadline(time.Now().Add(timeout))
+	_, err = service.conn.Read(failure)
+	if err != nil {
+		return
+	}
+	return notification.FailureFromBytes(bytes.NewBuffer(failure)), nil
+}
+
+// Sends notifications in `queue` through the current conn.
+// Returns a "failure", a notification that was invalid and caused Apple to drop the connection, which should not be re-sent,
+//  a queue of "unsent" notifications, which are notifications that were not sent due to a prior failure or network error and should be re-tried,
+//  and a network/connection error if one occured.
+func (service *ApnsService) Send(queue Queue, timeToWaitForResponse time.Duration) (failure notification.Failure, unsent Queue, err error) {
+	for i, notificationToSend := range queue {
+		err = service.SendOne(notificationToSend)
+		if err != nil {
+			// If we errored out while sending i, then the rest of the queue (including i) were unsent
+			unsent = queue[i:]
+			return
 		}
-	}()
-	go func() {
-		for {
-			n := <-writeChannel
-			notificationBytes, _ := n.Bytes()
-			conn.Write(notificationBytes)
-		}
-	}()
+	}
+	failure, err = service.ReadFailure(timeToWaitForResponse)
+	if err != nil {
+		// If we get here, there's no way to tell whether the notifications were correct or not, as we got an error when reading the response.
+		// So in the spirit of optimism, we declare that there are no unsent notifications, and return the error to the caller
+		return
+	}
+	if failure.Identifier != 0 {
+		unsent = queue.ResetAfter(failure.Identifier)
+	}
 	return
 }
 
-func SendNotifications(write chan notification.Notification, read chan notification.Failure, queue Queue) {
-	for _, n := range queue {
-		write <- n
+// Send all notifications in `queue`, retrying after apns connection drops until the entire queue is sent.
+// Note: If there is an unexpected network error (i.e. if the machine is offline), this will return unsent items to the caller
+func (service *ApnsService) SendAll(queue Queue, timeToWaitForEachResponse time.Duration) (failures []notification.Failure, unsent Queue, err error) {
+	var failure notification.Failure
+	for len(queue) > 0 {
+		failure, queue, err = service.Send(queue, timeToWaitForEachResponse)
+		if err != nil {
+			return failures, queue, err
+		}
+		if failure.Identifier != 0 {
+			failures = append(failures, failure)
+		}
 	}
-	failure := <-read
-	if failure.Identifier != 0 {
-		SendNotifications(write, read, queue.ResetAfter(failure.Identifier))
-	}
-}
-
-func ConnectAndSend(host string, certFile string, keyFile string, queue Queue) (err error) {
-	conn, err := Connect(host, certFile, keyFile)
-	if err != nil {
-		return
-	}
-	write, read, err := Channels(conn)
-	if err != nil {
-		return
-	}
-	SendNotifications(write, read, queue)
 	return
 }

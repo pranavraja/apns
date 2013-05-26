@@ -1,18 +1,27 @@
 package apns
 
 import (
-	"github.com/pranavraja/apns/notification"
 	"net"
 	"testing"
 	"time"
 )
 
 func BenchmarkNotificationSend(b *testing.B) {
-	queue := make([]notification.Notification, b.N)
+	queue := NewQueue()
 	for i := 0; i < b.N; i++ {
-		queue[i] = notification.MakeNotification(i, "04049bc60fc0a90ab23619c6a33e017ab6a9ea17de42b5eb008ed1f51a0eacee", "hi iphone")
+		queue = queue.Add(i, "04049bc60fc0a90ab23619c6a33e017ab6a9ea17de42b5eb008ed1f51a0eacee", "hi iphone")
 	}
-	ConnectAndSend("gateway.sandbox.push.apple.com:2195", "dev.pem", "dev.private.pem", queue)
+	service, err := Connect("gateway.sandbox.push.apple.com:2195", "dev.pem", "dev.private.pem")
+	if err != nil {
+		panic(err)
+	}
+	_, unsent, err := service.Send(queue, 2*time.Second)
+	if err != nil {
+		panic(err)
+	}
+	if len(unsent) != 0 {
+		panic("some notifications were not sent due to an error")
+	}
 }
 
 func TestQueue(t *testing.T) {
@@ -20,12 +29,8 @@ func TestQueue(t *testing.T) {
 	if len(queue) != 3 {
 		t.Errorf("queue has wrong number of elements: ", queue)
 	}
-	queue = queue.ResetAfter(2)
-	if len(queue) != 1 {
-		t.Errorf("queue has too many elements left: ", queue)
-	}
-	if queue[0].Header.Identifier != 3 {
-		t.Errorf("first identifier != 3")
+	if queue[0].Header.Identifier != 1 {
+		t.Errorf("first identifier != 1")
 	}
 }
 
@@ -59,15 +64,4 @@ func (conn StubConnection) SetDeadline(t time.Time) error {
 }
 func (conn StubConnection) Write(b []byte) (int, error) {
 	return 0, nil
-}
-
-func TestReadsFailures(t *testing.T) {
-	_, read, _ := Channels(StubConnection{[]byte{8, 4, 0, 0, 0, 2}})
-	failure := <-read
-	if failure.Status != 4 {
-		t.Errorf("couldn't read failure status")
-	}
-	if failure.Identifier != 2 {
-		t.Errorf("couldn't read failure identifier")
-	}
 }
