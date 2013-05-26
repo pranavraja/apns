@@ -103,6 +103,12 @@ func (service *ApnsService) SendAll(queue Queue, timeToWaitForEachResponse time.
 		if invalid.Identifier != 0 {
 			invalids = append(invalids, invalid)
 		}
+		if len(queue) > 0 {
+			err = service.Connect()
+			if err != nil {
+				return invalids, queue, err
+			}
+		}
 	}
 	return
 }
