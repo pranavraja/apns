@@ -20,7 +20,7 @@ type Notification struct {
 	Payload string
 }
 
-type Failure struct {
+type Invalid struct {
 	FailureType uint8
 	Status      uint8
 	Identifier  uint32
@@ -50,8 +50,8 @@ func (n *Notification) Bytes() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func FailureFromBytes(resp *bytes.Buffer) Failure {
-	var f Failure
+func InvalidFromBytes(resp *bytes.Buffer) Invalid {
+	var f Invalid
 	binary.Read(resp, binary.BigEndian, &f)
 	return f
 }

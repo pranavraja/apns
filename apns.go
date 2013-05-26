@@ -56,21 +56,21 @@ func (service *ApnsService) SendOne(n notification.Notification) error {
 	return err
 }
 
-func (service *ApnsService) ReadFailure(timeout time.Duration) (f notification.Failure, err error) {
-	failure := make([]byte, 6) // Protocol defines apns failures to be 6 bytes long. See http://developer.apple.com/library/ios/#documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/Chapters/CommunicatingWIthAPS.html#//apple_ref/doc/uid/TP40008194-CH101-SW4
+func (service *ApnsService) ReadInvalid(timeout time.Duration) (f notification.Invalid, err error) {
+	invalid := make([]byte, 6) // Protocol defines apns failures to be 6 bytes long. See http://developer.apple.com/library/ios/#documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/Chapters/CommunicatingWIthAPS.html#//apple_ref/doc/uid/TP40008194-CH101-SW4
 	service.conn.SetReadDeadline(time.Now().Add(timeout))
-	_, err = service.conn.Read(failure)
+	_, err = service.conn.Read(invalid)
 	if err != nil {
 		return
 	}
-	return notification.FailureFromBytes(bytes.NewBuffer(failure)), nil
+	return notification.InvalidFromBytes(bytes.NewBuffer(invalid)), nil
 }
 
 // Sends notifications in `queue` through the current conn.
-// Returns a "failure", a notification that was invalid and caused Apple to drop the connection, which should not be re-sent,
-//  a queue of "unsent" notifications, which are notifications that were not sent due to a prior failure or network error and should be re-tried,
+// Returns a notification that was invalid and caused Apple to drop the connection, which should not be re-sent,
+//  a queue of "unsent" notifications, which are notifications that were not sent due to a prior failure or network error and can be re-tried,
 //  and a network/connection error if one occured.
-func (service *ApnsService) Send(queue Queue, timeToWaitForResponse time.Duration) (failure notification.Failure, unsent Queue, err error) {
+func (service *ApnsService) Send(queue Queue, timeToWaitForResponse time.Duration) (invalid notification.Invalid, unsent Queue, err error) {
 	for i, notificationToSend := range queue {
 		err = service.SendOne(notificationToSend)
 		if err != nil {
@@ -79,29 +79,29 @@ func (service *ApnsService) Send(queue Queue, timeToWaitForResponse time.Duratio
 			return
 		}
 	}
-	failure, err = service.ReadFailure(timeToWaitForResponse)
+	invalid, err = service.ReadInvalid(timeToWaitForResponse)
 	if err != nil {
 		// If we get here, there's no way to tell whether the notifications were correct or not, as we got an error when reading the response.
 		// So in the spirit of optimism, we declare that there are no unsent notifications, and return the error to the caller
 		return
 	}
-	if failure.Identifier != 0 {
-		unsent = queue.ResetAfter(failure.Identifier)
+	if invalid.Identifier != 0 {
+		unsent = queue.ResetAfter(invalid.Identifier)
 	}
 	return
 }
 
 // Send all notifications in `queue`, retrying after apns connection drops until the entire queue is sent.
 // Note: If there is an unexpected network error (i.e. if the machine is offline), this will return unsent items to the caller
-func (service *ApnsService) SendAll(queue Queue, timeToWaitForEachResponse time.Duration) (failures []notification.Failure, unsent Queue, err error) {
-	var failure notification.Failure
+func (service *ApnsService) SendAll(queue Queue, timeToWaitForEachResponse time.Duration) (invalids []notification.Invalid, unsent Queue, err error) {
+	var invalid notification.Invalid
 	for len(queue) > 0 {
-		failure, queue, err = service.Send(queue, timeToWaitForEachResponse)
+		invalid, queue, err = service.Send(queue, timeToWaitForEachResponse)
 		if err != nil {
-			return failures, queue, err
+			return invalids, queue, err
 		}
-		if failure.Identifier != 0 {
-			failures = append(failures, failure)
+		if invalid.Identifier != 0 {
+			invalids = append(invalids, invalid)
 		}
 	}
 	return
