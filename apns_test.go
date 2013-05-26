@@ -1,7 +1,7 @@
 package apns
 
 import (
-	"net"
+	"errors"
 	"testing"
 	"time"
 )
@@ -34,34 +34,30 @@ func TestQueue(t *testing.T) {
 	}
 }
 
-// Implements net.Conn that returns a canned value when read.
-// Everything else on this Conn is a no-op
 type StubConnection struct {
-	Buffer []byte
+	Buffer             []byte
+	Written            []byte
+	shouldErrorOnRead  bool
+	shouldErrorOnWrite bool
 }
 
-func (conn StubConnection) Read(b []byte) (int, error) {
+func (conn *StubConnection) Read(b []byte) (int, error) {
+	if conn.shouldErrorOnRead {
+		return 0, errors.New("read error")
+	}
 	copy(b, conn.Buffer)
 	return len(conn.Buffer), nil
 }
-func (conn StubConnection) Close() error {
+func (conn *StubConnection) Close() error {
 	return nil
 }
-func (conn StubConnection) RemoteAddr() net.Addr {
+func (conn *StubConnection) SetReadDeadline(t time.Time) error {
 	return nil
 }
-func (conn StubConnection) LocalAddr() net.Addr {
-	return nil
-}
-func (conn StubConnection) SetReadDeadline(t time.Time) error {
-	return nil
-}
-func (conn StubConnection) SetWriteDeadline(t time.Time) error {
-	return nil
-}
-func (conn StubConnection) SetDeadline(t time.Time) error {
-	return nil
-}
-func (conn StubConnection) Write(b []byte) (int, error) {
-	return 0, nil
+func (conn *StubConnection) Write(b []byte) (int, error) {
+	if conn.shouldErrorOnWrite {
+		return 0, errors.New("write error")
+	}
+	copy(conn.Written, b)
+	return len(b), nil
 }
