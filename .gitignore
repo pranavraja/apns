@@ -1,4 +1,2 @@
 *.pem
 *.swp
-/pkg/
-/bin
