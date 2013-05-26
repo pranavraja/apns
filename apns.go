@@ -31,23 +31,23 @@ func Connect(host string, certFile string, keyFile string) (*ApnsService, error)
 	conf := new(tls.Config)
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
-        return nil, err
+		return nil, err
 	}
 	conf.Certificates = append(conf.Certificates, cert)
-    service := &ApnsService{host: host, conf: conf}
-    err = service.Connect()
-    return service, err
+	service := &ApnsService{host: host, conf: conf}
+	err = service.Connect()
+	return service, err
 }
 
 type ApnsService struct {
 	conn net.Conn
-    host string
-    conf *tls.Config
+	host string
+	conf *tls.Config
 }
 
 func (service *ApnsService) Connect() (err error) {
-    service.conn, err = tls.Dial("tcp", service.host, service.conf)
-    return
+	service.conn, err = tls.Dial("tcp", service.host, service.conf)
+	return
 }
 
 func (service *ApnsService) SendOne(n notification.Notification) error {
