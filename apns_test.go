@@ -1,6 +1,7 @@
 package apns
 
 import (
+	"bytes"
 	"errors"
 	"testing"
 	"time"
@@ -35,29 +36,55 @@ func TestQueue(t *testing.T) {
 }
 
 type StubConnection struct {
-	Buffer             []byte
-	Written            []byte
+	Buffer             *bytes.Buffer
+	Written            *bytes.Buffer
 	shouldErrorOnRead  bool
 	shouldErrorOnWrite bool
 }
 
-func (conn *StubConnection) Read(b []byte) (int, error) {
+func (conn StubConnection) Read(b []byte) (int, error) {
 	if conn.shouldErrorOnRead {
 		return 0, errors.New("read error")
 	}
-	copy(b, conn.Buffer)
-	return len(conn.Buffer), nil
+	return conn.Buffer.Read(b)
 }
-func (conn *StubConnection) Close() error {
+func (conn StubConnection) Close() error {
 	return nil
 }
-func (conn *StubConnection) SetReadDeadline(t time.Time) error {
+func (conn StubConnection) SetReadDeadline(t time.Time) error {
 	return nil
 }
-func (conn *StubConnection) Write(b []byte) (int, error) {
+func (conn StubConnection) Write(b []byte) (int, error) {
 	if conn.shouldErrorOnWrite {
 		return 0, errors.New("write error")
 	}
-	copy(conn.Written, b)
-	return len(b), nil
+	return conn.Written.Write(b)
+}
+
+func TestSend(t *testing.T) {
+	queue := NewQueue().Add(1, "a", "payload").Add(2, "b", "payload2").Add(3, "b", "payload2")
+	stubConnection := StubConnection{Written: new(bytes.Buffer), Buffer: new(bytes.Buffer)}
+	service := ApnsService{conn: stubConnection}
+	service.Send(queue, 2*time.Second)
+	if l := stubConnection.Written.Len(); l != 158 {
+		t.Errorf("not enough bytes written to the connection, should have been 158 but got %d", l)
+	}
+}
+
+func TestReadInvalid(t *testing.T) {
+	stubConnection := StubConnection{Written: new(bytes.Buffer), Buffer: bytes.NewBuffer([]byte{8, 1, 0, 0, 0, 1})}
+	service := ApnsService{conn: stubConnection}
+	invalid, err := service.ReadInvalid(2 * time.Second)
+	if err != nil {
+		t.Error(err)
+	}
+	if invalid.Identifier != 1 {
+		t.Errorf("wrong identifier read: %d", invalid.Identifier)
+	}
+	if invalid.Status != 1 {
+		t.Errorf("wrong status read: %d", invalid.Status)
+	}
+	if invalid.FailureType != 8 {
+		t.Errorf("wrong failure type read: %d", invalid.FailureType)
+	}
 }
