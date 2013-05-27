@@ -40,7 +40,7 @@ func main() {
     if err != nil {
         panic(err) // Couldn't read certificates, or couldn't connect to Apple for some reason
     }
-    queue := apns.NewQueue().Add(1, "aef4429b", "message").Add(2, "aef4429b", "message 2")
+    queue := apns.NewQueue().Add(1, "aef4429b", `{"aps":{"alert":"message"}}`).Add(2, "aef4429b", `{"aps":{"alert":"message"}}`)
     failureTimeout := 2 * time.Second
 
     // Send a batch of notifications over a connection. 
@@ -76,7 +76,7 @@ func main() {
         panic(err)
     }
     // Writing a notification will serialize and send it through the Conn
-    err = service.SendOne(notification.MakeNotification(1, "aef4429b", "message"))
+    err = service.SendOne(notification.MakeNotification(1, "aef4429b", `{"aps":{"alert":"message"}}`))
     if err != nil {
         panic(err)
     }

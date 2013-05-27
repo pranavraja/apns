@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
-	"encoding/json"
 )
 
 type header struct {
@@ -54,10 +53,4 @@ func InvalidFromBytes(resp *bytes.Buffer) Invalid {
 	var f Invalid
 	binary.Read(resp, binary.BigEndian, &f)
 	return f
-}
-
-func ApsPayload(payload string) ([]byte, error) {
-	type tree map[string]interface{}
-	jsonPayload := tree{"aps": tree{"alert": payload}}
-	return json.Marshal(jsonPayload)
 }

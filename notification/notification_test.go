@@ -23,10 +23,3 @@ func TestMakeNotification(t *testing.T) {
 		t.Errorf("Actual: %x, Expected: %x", actualToken, expectedToken)
 	}
 }
-
-func TestApsPayload(t *testing.T) {
-	payload, _ := ApsPayload("message")
-	if !bytes.Equal(payload, []byte("{\"aps\":{\"alert\":\"message\"}}")) {
-		t.Errorf("Payload: %s", payload)
-	}
-}
