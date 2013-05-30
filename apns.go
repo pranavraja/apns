@@ -54,6 +54,10 @@ type ApnsService struct {
 	conf *tls.Config
 }
 
+func NewService(host string, conf *tls.Config) *ApnsService {
+	return &ApnsService{host: host, conf: conf}
+}
+
 func (service *ApnsService) Connect() (err error) {
 	if service.conn != nil {
 		err = service.conn.Close()

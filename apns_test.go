@@ -2,10 +2,20 @@ package apns
 
 import (
 	"bytes"
+	"crypto/tls"
 	"errors"
 	"testing"
 	"time"
 )
+
+func ExampleNewService(t *testing.T) {
+	config := new(tls.Config)
+	// Load certificate from the filesystem
+	cert, _ := tls.LoadX509KeyPair("cert.pem", "cert.private.pem")
+	config.Certificates = append(config.Certificates, cert)
+	service := NewService("gateway.sandbox.push.apple.com:2195", config)
+	service.Connect()
+}
 
 func BenchmarkNotificationSend(b *testing.B) {
 	queue := NewQueue()
