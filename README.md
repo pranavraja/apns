@@ -102,7 +102,6 @@ Clone the repo and run `go test`.
 
 # Todo
 
-- Connection pooling?
 - Tests around error handling
 
 Pull requests encouraged =)
