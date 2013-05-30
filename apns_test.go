@@ -13,7 +13,7 @@ func ExampleNewService(t *testing.T) {
 	cert, _ := tls.LoadX509KeyPair("cert.pem", "cert.private.pem")
 	// Don't verify certificates (we want to man-in-the-middle this)
 	// Obviously, don't do this in production!
-	config.InsecureSKipVerify = true
+	config.InsecureSkipVerify = true
 	config.Certificates = append(config.Certificates, cert)
 	service := NewService("gateway.sandbox.push.apple.com:2195", config)
 	service.Connect()
