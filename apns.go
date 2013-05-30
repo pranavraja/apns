@@ -71,6 +71,7 @@ func (service *ApnsService) Connect() (err error) {
 	return
 }
 
+// Assuming we are already connected, send a single notification through the current connection.
 func (service *ApnsService) SendOne(n notification.Notification) error {
 	notificationBytes, _ := n.Bytes()
 	_, err := service.conn.Write(notificationBytes)
@@ -87,7 +88,7 @@ func (service *ApnsService) ReadInvalid(timeout time.Duration) (f notification.I
 	return notification.InvalidFromBytes(bytes.NewBuffer(invalid)), nil
 }
 
-// Sends notifications in `queue` through the current conn.
+// Assuming we are already connected, send notifications in `queue` through the current conn.
 // Returns a notification that was invalid and caused Apple to drop the connection, which should not be re-sent,
 // a queue of "unsent" notifications, which are notifications that were not sent due to a prior failure or network error and can be re-tried,
 // and a network/connection error if one occured.
@@ -112,7 +113,7 @@ func (service *ApnsService) Send(queue Queue, timeToWaitForResponse time.Duratio
 	return
 }
 
-// Send all notifications in `queue`, retrying after apns connection drops until the entire queue is sent.
+// Assuming we are already connected, send all notifications in `queue`, retrying after apns connection drops until the entire queue is sent.
 // Note: If there is an unexpected network error (i.e. if the machine is offline), this will return unsent items to the caller
 func (service *ApnsService) SendAll(queue Queue, timeToWaitForEachResponse time.Duration) (invalids []notification.Invalid, unsent Queue, err error) {
 	var invalid notification.Invalid
