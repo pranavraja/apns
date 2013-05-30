@@ -54,6 +54,8 @@ type ApnsService struct {
 	conf *tls.Config
 }
 
+// Create a new service with a custom tls.Config.
+// Allows you to load in your own certificates and customize verification behavior
 func NewService(host string, conf *tls.Config) *ApnsService {
 	return &ApnsService{host: host, conf: conf}
 }
@@ -87,8 +89,8 @@ func (service *ApnsService) ReadInvalid(timeout time.Duration) (f notification.I
 
 // Sends notifications in `queue` through the current conn.
 // Returns a notification that was invalid and caused Apple to drop the connection, which should not be re-sent,
-//  a queue of "unsent" notifications, which are notifications that were not sent due to a prior failure or network error and can be re-tried,
-//  and a network/connection error if one occured.
+// a queue of "unsent" notifications, which are notifications that were not sent due to a prior failure or network error and can be re-tried,
+// and a network/connection error if one occured.
 func (service *ApnsService) Send(queue Queue, timeToWaitForResponse time.Duration) (invalid notification.Invalid, unsent Queue, err error) {
 	for i, notificationToSend := range queue {
 		err = service.SendOne(notificationToSend)
