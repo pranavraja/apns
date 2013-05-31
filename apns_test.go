@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"crypto/tls"
 	"errors"
+	"fmt"
+	"github.com/pranavraja/apns/notification"
 	"testing"
 	"time"
 )
 
-func ExampleNewService(t *testing.T) {
+func ExampleNewService() {
 	config := new(tls.Config)
 	cert, _ := tls.LoadX509KeyPair("cert.pem", "cert.private.pem")
 	// Don't verify certificates (we want to man-in-the-middle this)
@@ -17,6 +19,35 @@ func ExampleNewService(t *testing.T) {
 	config.Certificates = append(config.Certificates, cert)
 	service := NewService("gateway.sandbox.push.apple.com:2195", config)
 	service.Connect()
+}
+
+func ExampleQueue_Add() {
+	queue := NewQueue().Add(1, "aef4429b", `{"aps":{"alert":"message"}}`).Add(2, "aef4429b", `{"aps":{"alert":"message"}}`)
+	fmt.Printf("%v", queue)
+}
+
+func ExampleQueue_ResetAfter() {
+	queue := NewQueue().Add(1, "aef4429b", `{"aps":{"alert":"message"}}`).Add(2, "aef4429b", `{"aps":{"alert":"message"}}`)
+	queue = queue.ResetAfter(1)
+	fmt.Printf("remaining identifier: %d", queue[0].Header.Identifier)
+	// Output:
+	// remaining identifier: 2
+}
+
+func ExampleApnsService_SendOne() {
+	service, _ := Connect("gateway.sandbox.push.apple.com:2195", "dev.pem", "dev.private.pem")
+	service.SendOne(notification.MakeNotification(1, "aef4429b", `{"aps":{"alert":"message"}}`))
+	failure, _ := service.ReadInvalid(2 * time.Second)
+	fmt.Printf("%v", failure)
+}
+
+func ExampleApnsService_SendAll() {
+	queue := NewQueue().Add(1, "aef4429b", `{"aps":{"alert":"message"}}`).Add(2, "aef4429b", `{"aps":{"alert":"message"}}`)
+	failureTimeout := 2 * time.Second
+	service, _ := Connect("gateway.sandbox.push.apple.com:2195", "dev.pem", "dev.private.pem")
+	failures, unsent, _ := service.SendAll(queue, failureTimeout)
+	fmt.Printf("%v", failures)
+	fmt.Printf("%v", unsent)
 }
 
 func BenchmarkNotificationSend(b *testing.B) {
