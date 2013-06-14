@@ -79,15 +79,33 @@ func TestQueue(t *testing.T) {
 }
 
 type StubConnection struct {
-	Buffer             *bytes.Buffer
-	Written            *bytes.Buffer
-	shouldErrorOnRead  bool
-	shouldErrorOnWrite bool
+	Buffer              *bytes.Buffer
+	Written             *bytes.Buffer
+	shouldErrorOnRead   bool
+	shouldTimeoutOnRead bool
+	shouldErrorOnWrite  bool
+}
+
+type networkError struct {
+	IsTimeout bool
+}
+
+func (t networkError) Error() string {
+	return "Timed out."
+}
+func (t networkError) Timeout() bool {
+	return t.IsTimeout
+}
+func (t networkError) Temporary() bool {
+	return false
 }
 
 func (conn StubConnection) Read(b []byte) (int, error) {
+	if conn.shouldTimeoutOnRead {
+		return 0, networkError{true}
+	}
 	if conn.shouldErrorOnRead {
-		return 0, errors.New("read error")
+		return 0, networkError{false}
 	}
 	return conn.Buffer.Read(b)
 }
@@ -129,5 +147,23 @@ func TestReadInvalid(t *testing.T) {
 	}
 	if invalid.FailureType != 8 {
 		t.Errorf("wrong failure type read: %d", invalid.FailureType)
+	}
+}
+
+func TestReadInvalid_Error(t *testing.T) {
+	stubConnection := StubConnection{Written: new(bytes.Buffer), Buffer: bytes.NewBuffer([]byte{8, 1, 0, 0, 0, 1}), shouldErrorOnRead: true}
+	service := ApnsService{conn: stubConnection}
+	_, err := service.ReadInvalid(2 * time.Second)
+	if err == nil {
+		t.Errorf("didn't capture error")
+	}
+}
+
+func TestReadInvalid_Timeout(t *testing.T) {
+	stubConnection := StubConnection{Written: new(bytes.Buffer), Buffer: bytes.NewBuffer([]byte{8, 1, 0, 0, 0, 1}), shouldTimeoutOnRead: true}
+	service := ApnsService{conn: stubConnection}
+	_, err := service.ReadInvalid(2 * time.Second)
+	if err != nil {
+		t.Errorf("should have swallowed error: %v", err)
 	}
 }

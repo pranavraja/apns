@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"github.com/pranavraja/apns/notification"
 	"io"
+	"net"
 	"time"
 )
 
@@ -82,6 +83,10 @@ func (service *ApnsService) ReadInvalid(timeout time.Duration) (f notification.I
 	invalid := make([]byte, 6) // Protocol defines apns failures to be 6 bytes long. See http://developer.apple.com/library/ios/#documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/Chapters/CommunicatingWIthAPS.html#//apple_ref/doc/uid/TP40008194-CH101-SW4
 	service.conn.SetReadDeadline(time.Now().Add(timeout))
 	_, err = service.conn.Read(invalid)
+	if readError, ok := err.(net.Error); ok && readError.Timeout() {
+		// Timeouts are actually OK, this means that Apple has nothing to say and therefore the send succeeded
+		return f, nil
+	}
 	if err != nil {
 		return
 	}
