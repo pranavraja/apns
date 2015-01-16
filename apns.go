@@ -3,10 +3,11 @@ package apns
 import (
 	"bytes"
 	"crypto/tls"
-	"github.com/pranavraja/apns/notification"
 	"io"
 	"net"
 	"time"
+
+	"github.com/pranavraja/apns/notification"
 )
 
 type Queue []notification.Notification
@@ -138,4 +139,9 @@ func (service *ApnsService) SendAll(queue Queue, timeToWaitForEachResponse time.
 		}
 	}
 	return
+}
+
+// Close closes the underlying socket
+func (service *ApnsService) Close() error {
+	return service.conn.Close()
 }
